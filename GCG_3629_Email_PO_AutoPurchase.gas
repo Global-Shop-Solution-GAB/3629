@@ -1,0 +1,469 @@
+Program.Sub.ScreenSU.Start
+gui.f_Email..create
+gui.f_Email..caption("Email List")
+gui.f_Email..size(7530,6885)
+gui.f_Email..minx(0)
+gui.f_Email..miny(0)
+gui.f_Email..position(0,0)
+gui.f_Email..event(unload,Unload)
+gui.f_Email..alwaysontop(False)
+gui.f_Email..fontname("Arial")
+gui.f_Email..fontsize(8)
+gui.f_Email..forecolor(0)
+gui.f_Email..fontstyle(,,,,)
+gui.f_Email..BackColor(-2147483633)
+gui.f_Email..controlbox(True)
+gui.f_Email..maxbutton(True)
+gui.f_Email..minbutton(True)
+gui.f_Email..mousepointer(0)
+gui.f_Email..moveable(True)
+gui.f_Email..sizeable(True)
+gui.f_Email..ShowInTaskBar(True)
+gui.f_Email..titlebar(True)
+gui.f_Email.lvwEmail.create(listview)
+gui.f_Email.lvwEmail.view(3)
+gui.f_Email.lvwEmail.visible(True)
+gui.f_Email.lvwEmail.size(7110,5775)
+gui.f_Email.lvwEmail.zorder(0)
+gui.f_Email.lvwEmail.position(75,75)
+gui.f_Email.lvwEmail.enabled(True)
+gui.f_Email.lvwEmail.fontname("Arial")
+gui.f_Email.lvwEmail.fontsize(8)
+gui.f_Email.cmdEmailOk.create(button)
+gui.f_Email.cmdEmailOk.caption("Email")
+gui.f_Email.cmdEmailOk.visible(True)
+gui.f_Email.cmdEmailOk.size(975,375)
+gui.f_Email.cmdEmailOk.zorder(0)
+gui.f_Email.cmdEmailOk.position(120,5895)
+gui.f_Email.cmdEmailOk.enabled(True)
+gui.f_Email.cmdEmailOk.fontname("Arial")
+gui.f_Email.cmdEmailOk.fontsize(8)
+gui.f_Email.cmdEmailOk.event(click,Email)
+gui.f_Email.cmdEmailOk.defaultvalue("")
+gui.f_Email.cmdEmailOk.controlgroup(0)
+gui.f_Email.cmdall.create(button)
+gui.f_Email.cmdall.caption("Select ALL")
+gui.f_Email.cmdall.visible(True)
+gui.f_Email.cmdall.size(930,375)
+gui.f_Email.cmdall.zorder(0)
+gui.f_Email.cmdall.position(5285,5900)
+gui.f_Email.cmdall.enabled(True)
+gui.f_Email.cmdall.fontname("Arial")
+gui.f_Email.cmdall.fontsize(8)
+gui.f_Email.cmdall.event(click,cmdall_click)
+gui.f_Email.cmdall.defaultvalue("")
+gui.f_Email.cmdall.controlgroup(0)
+gui.f_Email.cmdNo.create(button)
+gui.f_Email.cmdNo.caption("DeSelect")
+gui.f_Email.cmdNo.visible(True)
+gui.f_Email.cmdNo.size(870,375)
+gui.f_Email.cmdNo.zorder(0)
+gui.f_Email.cmdNo.position(6335,5900)
+gui.f_Email.cmdNo.enabled(True)
+gui.f_Email.cmdNo.fontname("Arial")
+gui.f_Email.cmdNo.fontsize(8)
+gui.f_Email.cmdNo.event(click,cmdno_click)
+gui.f_Email.cmdNo.defaultvalue("")
+gui.f_Email.cmdNo.controlgroup(0)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Variable.UDT.POList.Define("BIRUNID",Long)
+Variable.UDT.POList.Define("PO_Number",String,PO_Number)
+Variable.UDT.POList.Define("Vendor",String,Vendor)
+Variable.UDT.POList.Define("Notes",String)
+Variable.UDT.POList.Define("Name_Vendor",String,Vendor_Name)
+Variable.uGlobal.uPOList.Declare("POList")
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+'RAN 02-26-06
+'Project: 3629
+
+
+
+' if not the PO Proof report, exit
+F.Intrinsic.Control.If(V.Passed.009001,<>,"002828")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+
+F.ODBC.Connection!Con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.Control.CallSub(Findpos)
+Gui.f_email..Show
+
+
+'V.Local.iRet.Declare(Long)
+'
+'
+'' ask if POs should be emailed. If the response is not "Yes", end script
+'F.Intrinsic.UI.Msgbox("Email Purchase Orders?","",4,V.Local.iRet)
+'F.Intrinsic.Control.If(V.Local.iRet,<>,6)
+'	F.Intrinsic.Control.CallSub(Unload)
+'F.Intrinsic.Control.EndIf
+'
+'' didn't end, find the POs thay were created
+'F.Intrinsic.Control.CallSub(Findpos)
+'F.Intrinsic.Control.CallSub(Email)
+'F.Intrinsic.Control.CallSub(Printsummary)
+'F.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3629_Email_PO_AutoPurchase.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.findPos.Start
+F.Intrinsic.Control.SetErrorHandler("findPos_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+Gui.f_email.lvwEmail.Checkboxes(true)
+
+Gui.f_email.lvwEmail.AddListViewColumn("Vendor",1500,0)
+Gui.f_email.lvwEmail.AddListViewColumn("Vendor_Name",3500,0)
+Gui.f_email.lvwEmail.AddListViewColumn("PO_Number",2000,0)
+
+
+
+V.Local.sSel.Declare(String)
+V.Local.lRow.Declare(Long)
+
+V.uGlobal.uPOList.Redim(-1,-1)
+
+
+F.Intrinsic.String.Build("select distinct PO_Number, Vendor, Vendor_Name from v_BI_PO_Proof where Trmnl = '{0}' and Rptid = '002828' order by PO_Number",V.Caller.Terminal,V.Local.sSel)
+
+F.ODBC.Connection!Con.OpenRecordsetRW("rstSel1",V.Local.sSel)
+	
+	F.Intrinsic.Control.If(V.ODBC.Con!rstSel1.EOF,=,False)
+		F.Intrinsic.Variable.LoadUDTFromRecordset("Con","rstSel1","v.uGlobal.uPOList",False,1000)
+	F.Intrinsic.Control.Endif
+	F.ODBC.Con!rstSel1.MoveFirst
+	F.Intrinsic.Control.DoUntil(V.ODBC.Con!rstSel1.EOF,=,True)
+		Gui.f_email.lvwEmail.AddListItem(V.Local.lRow,V.ODBC.Con!rstSel1.FieldValtrim!Vendor)
+		Gui.f_email.lvwEmail.SetListItemSubItemText(V.Local.lRow,1,V.ODBC.Con!rstSel1.FieldValtrim!Vendor_Name)
+		Gui.f_email.lvwEmail.SetListItemSubItemText(V.Local.lRow,2,V.ODBC.Con!rstSel1.FieldValtrim!PO_Number)
+		F.Intrinsic.Math.Add(V.Local.lRow,1,V.Local.lRow)
+		F.ODBC.Con!rstSel1.MoveNext
+	F.Intrinsic.Control.Loop
+
+
+F.ODBC.Con!rstSel1.Close
+
+'' if no records are found, end
+'F.Intrinsic.Control.If(V.uGlobal.uPOList!PO_Number.UBound,<,0)
+'	F.Intrinsic.Control.CallSub(Unload)
+'F.Intrinsic.Control.EndIf
+
+' only need a single record, per PO
+'F.Intrinsic.Variable.UDTMultiFlagDuplicates(V.uGlobal.uPOList!PO_Number,V.uGlobal.uPOList!Vendor)
+'F.Intrinsic.Variable.UDTDeleteFlagged(V.uGlobal.uPOList)
+
+
+
+
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("findPos_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3629_Email_PO_AutoPurchase.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.findPos.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.SetErrorHandler("Unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+
+F.ODBC.Connection!Con.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3629_Email_PO_AutoPurchase.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Unload.End
+
+Program.Sub.Email.Start
+F.Intrinsic.Control.SetErrorHandler("Email_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+
+V.Local.i.Declare(Long)
+V.Local.sRcptEmail.Declare(String)
+V.Local.sRcptName.Declare(String)
+V.Local.sSenderEmail.Declare(String)
+V.Local.sSenderName.Declare(String)
+V.Local.sAttach.Declare(String)
+V.Local.sParamName.Declare(String)
+V.Local.sParamVal.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.sPN.Declare(String)
+V.Local.sPV.Declare(String)
+V.Local.sCallParams.Declare(String)
+V.Local.sSel.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.lRet.Declare(Long)
+V.Local.sRange.Declare(String)
+
+
+'Get email address of GS User
+F.Global.Security.GetUserEmail(V.Caller.User,V.Local.sSenderEmail)
+
+'Alert and end script if no email found for GS User
+F.Intrinsic.control.if(V.Local.sSenderEmail,=,"")
+	F.Intrinsic.UI.Msgbox("Error in email procedure.  The GS User does not have an email address associated with it in User Security Maintenance.")
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.control.endif
+
+'Get full name of GS User
+F.Global.Security.GetFullName(V.Caller.User,V.Local.sSenderName)
+
+
+Gui.f_email.lvwEmail.RetrieveCheckedListItems(V.Local.sTemp)
+
+F.Intrinsic.Control.If(V.Local.sTemp,=,"***NORETURN***")
+	F.Intrinsic.UI.Msgbox("Please select vendor from list")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+Gui.f_Email.cmdEmailOk.Enabled(false)
+
+F.Intrinsic.String.Split(V.Local.sTemp,"*!*",V.Local.sTemp)
+
+' for each PO
+F.Intrinsic.Control.For(V.Local.i,V.Local.sTemp.LBound,V.Local.sTemp.UBound,1)
+	Gui.f_email.lvwEmail.RetrieveItemOrdinal(V.Local.sTemp(V.Local.i),V.Local.lRet)
+	V.Local.sRange.set(V.Screen.f_email!lvwEmail.ListItemTextExtended(V.Local.lRet))
+	F.Intrinsic.String.Split(V.Local.sRange,"*!*",V.Local.sRange)
+
+	' get vendor email
+	F.Intrinsic.String.Build("select Email from v_Vendor_Addl where vendor = '{0}' ",V.Local.sRange(0),V.Local.sSel)
+	F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSel,V.Local.sRet)
+	
+	' if vendor email is found
+	F.Intrinsic.Control.If(V.Local.sRet.Trim,<>,"")
+		'Set attachment filename and path
+		F.Intrinsic.String.Concat(V.Caller.FilesDir,"\",V.Local.sRange(2),".pdf",V.Local.sAttach)
+		'Call GS program to build BI table data - paramters are: PO!*!Screenless Switch"S" !*! Screenless History Flag!*!Print Open Qty Flag!*!Use Vendor Currency Flag
+		F.Intrinsic.String.Concat(V.Local.sRange(2),"!*!S!*!N!*!N!*!N",V.Local.sCallParams)
+		F.Global.General.CallWrapperSyncBio(915000,V.Local.sCallParams)
+
+		'Call BI PO report
+		'had to add in the qtydec param, otherwise cr is throwing up with missing parameter values...
+		V.Local.sPN.Set("Terminal*!*ReportID*!*UseVendorCurr*!*PRTCNFRM*!*PROGRAM*!*PRTHIST*!*QTYDEC")
+		F.Intrinsic.String.Concat(V.caller.Terminal,"*!*002801*!* *!* *!* *!* *!*",V.Local.sPV)
+		F.Intrinsic.String.Split(V.Local.sPN,"*!*",V.Local.sParamName)
+		F.Intrinsic.String.Split(V.Local.sPV,"*!*",V.Local.sParamVal)
+		F.Global.BI.SaveReport(002801,1,V.Local.sParamName,V.Local.sParamVal,V.Local.sAttach)
+		
+		V.Local.sRcptName.Set(V.Local.sRange(1))
+		' to email, to name, sender email, sender name, subject, body, attachment, delete attachment
+		F.Global.Messaging.CreateEMMessage(V.Local.sRet.Trim,V.Local.sRcptName,V.Local.sSenderEmail,V.Local.sSenderName,"New Purchase Order","",V.Local.sAttach,True)
+		
+	F.Intrinsic.Control.Else
+		V.uGlobal.uPOList(v.Local.i)!Notes.Set("Invalid Email Address")
+	F.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.Next(V.Local.i)
+
+Gui.f_Email.cmdEmailOk.Enabled(True)
+
+'' for each PO
+
+''F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uPOList!PO_Number.LBound,V.uGlobal.uPOList!PO_Number.UBound,1)
+'	' get vendor email
+'	F.Intrinsic.String.Build("select Email from v_Vendor_Addl where vendor = '{0}' ",V.uGlobal.uPOList(v.Local.i)!Vendor,V.Local.sSel)
+'	F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSel,V.Local.sRet)
+'	
+'	' if vendor email is found
+'	F.Intrinsic.Control.If(V.Local.sRet.Trim,<>,"")
+'		'Set attachment filename and path
+'		F.Intrinsic.String.Concat(V.Caller.FilesDir,"\",V.uGlobal.uPOList(v.Local.i)!PO_Number,".pdf",V.Local.sAttach)
+'		'Call GS program to build BI table data - paramters are: PO!*!Screenless Switch"S" !*! Screenless History Flag!*!Print Open Qty Flag!*!Use Vendor Currency Flag
+'		F.Intrinsic.String.Concat(V.uGlobal.uPOList(v.Local.i)!PO_Number,"!*!S!*!N!*!N!*!N",V.Local.sCallParams)
+'		F.Global.General.CallWrapperSyncBio(915000,V.Local.sCallParams)
+'
+'		'Call BI PO report
+'		'had to add in the qtydec param, otherwise cr is throwing up with missing parameter values...
+'		V.Local.sPN.Set("Terminal*!*ReportID*!*UseVendorCurr*!*PRTCNFRM*!*PROGRAM*!*PRTHIST*!*QTYDEC")
+'		F.Intrinsic.String.Concat(V.caller.Terminal,"*!*002801*!* *!* *!* *!* *!*",V.Local.sPV)
+'		F.Intrinsic.String.Split(V.Local.sPN,"*!*",V.Local.sParamName)
+'		F.Intrinsic.String.Split(V.Local.sPV,"*!*",V.Local.sParamVal)
+'		F.Global.BI.SaveReport(002801,1,V.Local.sParamName,V.Local.sParamVal,V.Local.sAttach)
+'		
+'		V.Local.sRcptName.Set(v.uGlobal.uPOList(v.Local.i)!Vendor_Name)
+'		' to email, to name, sender email, sender name, subject, body, attachment, delete attachment
+'		F.Global.Messaging.CreateEMMessage(V.Local.sRet.Trim,V.Local.sRcptName,V.Local.sSenderEmail,V.Local.sSenderName,"New Purchase Order","",V.Local.sAttach,True)
+'		
+'	F.Intrinsic.Control.Else
+'		V.uGlobal.uPOList(v.Local.i)!Notes.Set("Invalid Email Address")
+'	F.Intrinsic.Control.EndIf
+'	
+'F.Intrinsic.Control.Next(V.Local.i)
+
+
+F.Intrinsic.Control.CallSub(Printsummary)
+F.Intrinsic.Control.CallSub(Unload)
+
+
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Email_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3629_Email_PO_AutoPurchase.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+
+
+Program.Sub.Email.End
+
+Program.Sub.PrintSummary.Start
+F.Intrinsic.Control.SetErrorHandler("PrintSummary_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+
+
+
+V.Local.iRUNID.Declare(Long)
+V.Local.iLOGID.Declare(Long)
+V.Local.sSel.Declare(String)
+V.Local.sParams.Declare(String)
+V.Local.sVals.Declare(String)
+V.Local.iRptid.Declare(Long)
+V.Local.sRpt.Declare(String)
+V.Local.sRptName.Declare(String)
+
+F.Global.BI.GetRunID(V.Local.iRUNID)
+F.Global.BI.StartLogging(V.Local.iRUNID,-1,-1,"",V.Local.iLOGID)
+
+'F.Intrinsic.Debug.InvokeDebugger
+'F.Intrinsic.Debug.Stop
+
+
+F.Intrinsic.String.Build("delete from GCG_3629_EMAILAUTOPO where BIRUNID <> '{0}' ",V.Local.iRUNID,V.Local.sSel)
+F.ODBC.Connection!Con.Execute(V.Local.sSel)
+
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uPOList!Notes,"Notes")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uPOList!Name_Vendor,"Name_Vendor")
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uPOList!BIRUNID,"BIRUNID")
+F.Intrinsic.Variable.UDTSetMemberValue(V.uGlobal.uPOList!BIRUNID,V.Local.iRUNID)
+
+F.ODBC.Connection!Con.OpenRecordsetRW("rstSel","GCG_3629_EMAILAUTOPO")
+F.Intrinsic.Variable.SaveUDTToRecordset("Con","rstSel","v.uGlobal.uPOList")
+
+
+F.Intrinsic.String.Build("{0}\Custom\GCG_3629_EmailAutoPO.rpt",V.Caller.BusintDir,V.Local.sRptName)
+F.Global.BI.InitializeReport(V.Local.sRptName,V.Local.sRptName,V.Local.iRptid)
+V.Local.sParams.set("BIRUNID")
+V.Local.sVals.Set(V.Local.iRUNID)
+F.Global.BI.StopLogging(V.Local.iLOGID)
+f.Global.BI.PrintReport(v.Local.iRptID,0,v.Local.sParams,v.Local.sVals,False)
+
+
+
+
+
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("PrintSummary_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3629_Email_PO_AutoPurchase.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.PrintSummary.End
+
+program.sub.cmdall_click.start
+
+V.Local.sRet.Declare(String)
+V.Local.i.Declare(String)
+
+Gui.f_email.lvwEmail.RetrieveAllListItems(V.Local.sRet)
+F.Intrinsic.String.Split(V.Local.sRet,"*!*",V.Local.sRet)
+
+F.Intrinsic.Control.for(V.Local.i,0,V.Local.sRet.UBound,1)
+	Gui.f_email.lvwEmail.ListItemCheck(V.Local.i,True)
+F.Intrinsic.Control.Next(V.Local.i)
+
+
+program.sub.cmdall_click.end
+
+program.sub.cmdno_click.start
+
+
+
+V.Local.sRet.Declare(String)
+V.Local.i.Declare(String)
+
+Gui.f_email.lvwEmail.RetrieveAllListItems(V.Local.sRet)
+F.Intrinsic.String.Split(V.Local.sRet,"*!*",V.Local.sRet)
+
+F.Intrinsic.Control.for(V.Local.i,0,V.Local.sRet.UBound,1)
+	Gui.f_email.lvwEmail.ListItemCheck(V.Local.i,False)
+F.Intrinsic.Control.Next(V.Local.i)
+
+
+
+
+
+program.sub.cmdno_click.end
+
+Program.Sub.Comments.Start
+${$0$}$GCG_Email_PO_Auto_Purchasing$}$JCT$}$8/18/2015 12:08:26 PM
+${$1$}$$}$$}$0$}$16090$}$BSI005-PRE-PROCESS-HOOK$}$8/18/2015 12:12:08 PM$}$(Program: BSI005; Screen: )
+report 2828
+
+${$3$}$0$}$$}$0$}$-1$}$$}$12:00:00 AM$}$for Fabcon, per quote 6847
+Automatically email the Purchase Order to vendors. There will be a prompt prior to the Proof Report that will ask if emails should be sent to the Vendors.
+If yes is selected then the email address in the vendor master will be used.
+If no email address is found then the email will not be sent to that vendor.
+If no is selected at the prompt then no emails will be sent.
+
+A record will be created on a custom table with fields Note, Vendor Number, and PO Number.
+Note will indicate if the email was not sent
+
+Script will run when the PO Proof report prints.
+IMPORTANT:
+Must NOT have standard Purchasing Opiton "Do Not Print PO Proof Report" selected
+Program.Sub.Comments.End
+
